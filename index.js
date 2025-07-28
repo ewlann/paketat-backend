@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const pdfkit = require('pdfkit');
 const fs = require('fs');
+const qrcode = require('qrcode');
 require('dotenv').config();
 
 const Package = require('./models/Package');
@@ -71,15 +72,20 @@ async function generatePackagePdf(pkg) {
       doc.text(`Telefoni: ${pkg.telefoni}`);
       doc.text(`Email dërgues: ${pkg.emailSender}`);
       doc.text(`Email marrës: ${pkg.emailReceiver}`);
+      doc.text(`Kg: ${pkg.kg}`);
+      doc.text(`Çmimi: ${pkg.cmimi}`);
+      doc.text(
+        `Data: ${pkg.data ? new Date(pkg.data).toISOString().split('T')[0] : ''}`,
+      );
+      doc.text(`Tracking ID: ${pkg.trackingId}`);
+      doc.text(`Status: ${pkg.status}`);
 
       doc.moveDown();
       doc.text('QR Code:', { underline: true });
 
-      // Generate QR Code using a simple placeholder (QR generation on server side can be implemented with qrcode library)
-      // For demonstration we encode package id as QR content
-      const qr = require('qrcode');
+      // Generate QR Code content from package id
       const qrData = JSON.stringify({ id: pkg._id });
-      qr.toDataURL(qrData, { errorCorrectionLevel: 'H' }, (err, url) => {
+      qrcode.toDataURL(qrData, { errorCorrectionLevel: 'H' }, (err, url) => {
         if (err) {
           doc.text('Error generating QR code');
         } else {
@@ -113,6 +119,9 @@ app.post('/api/packages', async (req, res) => {
       emailSender,
       emailReceiver,
     } = req.body;
+    // Extract additional fields
+    const { kg, cmimi, data, trackingId, status } = req.body;
+
     const pkg = new Package({
       emri,
       mbiemri,
@@ -121,6 +130,11 @@ app.post('/api/packages', async (req, res) => {
       telefoni,
       emailSender,
       emailReceiver,
+      kg,
+      cmimi,
+      data,
+      trackingId: trackingId || mongoose.Types.ObjectId().toString().slice(-8),
+      status: status || 'e re',
     });
     await pkg.save();
 
@@ -166,7 +180,6 @@ app.post('/api/packages', async (req, res) => {
 // GET /api/packages - List packages (admin only)
 app.get('/api/packages', authenticateToken, async (req, res) => {
   try {
-    // Only admin can list
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Not authorized' });
     const packages = await Package.find().sort({ createdAt: -1 });
     res.json(packages);
@@ -247,10 +260,10 @@ app.get('/api/report', authenticateToken, async (req, res) => {
     const start = new Date(year, monthNum - 1, 1);
     const end = new Date(year, monthNum, 1);
     const packages = await Package.find({ createdAt: { $gte: start, $lt: end } });
-    // Create CSV-like string
-    let report = 'ID,Emri,Mbiemri,Adresa,Qyteti,Telefoni,Email dërgues,Email marrës,Data\n';
+    // Create CSV header including new fields
+    let report = 'ID,Emri,Mbiemri,Adresa,Qyteti,Telefoni,Email dërgues,Email marrës,Kg,Cmimi,Data,Tracking ID,Status\n';
     packages.forEach((p) => {
-      report += `${p._id},${p.emri},${p.mbiemri},${p.adresa},${p.qyteti},${p.telefoni},${p.emailSender},${p.emailReceiver},${p.createdAt.toISOString()}\n`;
+      report += `${p._id},${p.emri},${p.mbiemri},${p.adresa},${p.qyteti},${p.telefoni},${p.emailSender},${p.emailReceiver},${p.kg},${p.cmimi},${p.createdAt.toISOString()},${p.trackingId},${p.status}\n`;
     });
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="report_${month}.csv"`);
