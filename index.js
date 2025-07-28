@@ -70,7 +70,7 @@ async function generatePackagePdf(pkg) {
       doc.text(`Adresa: ${pkg.adresa}`);
       doc.text(`Qyteti: ${pkg.qyteti}`);
       doc.text(`Telefoni: ${pkg.telefoni}`);
-      doc.text(`Email dërguës: ${pkg.emailSender}`);
+      doc.text(`Email dërgues: ${pkg.emailSender}`);
       doc.text(`Email marrës: ${pkg.emailReceiver}`);
       doc.text(`Kg: ${pkg.kg}`);
       doc.text(`Çmimi: ${pkg.cmimi}`);
@@ -236,6 +236,30 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// POST /api/register - Register a new business/client
+// This endpoint allows businesses or clients to register an account.
+// It hashes the provided password and assigns the default role 'client'.
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password, business } = req.body;
+    // Basic validation
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+    const existing = await User.findOne({ username });
+    if (existing) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    const hashed = await bcrypt.hash(password, 10);
+    const user = new User({ username, password: hashed, role: 'client', business });
+    await user.save();
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /api/register-operator - Register new operator (admin)
 app.post('/api/register-operator', authenticateToken, async (req, res) => {
   try {
@@ -246,6 +270,20 @@ app.post('/api/register-operator', authenticateToken, async (req, res) => {
     await user.save();
     res.json({ success: true, user });
   } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/track/:trackingId - Public endpoint to track package by tracking ID
+// Returns the package details without requiring authentication.
+app.get('/api/track/:trackingId', async (req, res) => {
+  try {
+    const { trackingId } = req.params;
+    const pkg = await Package.findOne({ trackingId });
+    if (!pkg) return res.status(404).json({ error: 'Not found' });
+    res.json(pkg);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -261,7 +299,7 @@ app.get('/api/report', authenticateToken, async (req, res) => {
     const end = new Date(year, monthNum, 1);
     const packages = await Package.find({ createdAt: { $gte: start, $lt: end } });
     // Create CSV header including new fields
-    let report = 'ID,Emri,Mbiemri,Adresa,Qyteti,Telefoni,Email dërguës,Email marrës,Kg,Cmimi,Data,Tracking ID,Status\n';
+    let report = 'ID,Emri,Mbiemri,Adresa,Qyteti,Telefoni,Email dërgues,Email marrës,Kg,Cmimi,Data,Tracking ID,Status\n';
     packages.forEach((p) => {
       report += `${p._id},${p.emri},${p.mbiemri},${p.adresa},${p.qyteti},${p.telefoni},${p.emailSender},${p.emailReceiver},${p.kg},${p.cmimi},${p.createdAt.toISOString()},${p.trackingId},${p.status}\n`;
     });
