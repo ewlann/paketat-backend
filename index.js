@@ -70,7 +70,7 @@ async function generatePackagePdf(pkg) {
       doc.text(`Adresa: ${pkg.adresa}`);
       doc.text(`Qyteti: ${pkg.qyteti}`);
       doc.text(`Telefoni: ${pkg.telefoni}`);
-      doc.text(`Email dërgues: ${pkg.emailSender}`);
+      doc.text(`Email dërguës: ${pkg.emailSender}`);
       doc.text(`Email marrës: ${pkg.emailReceiver}`);
       doc.text(`Kg: ${pkg.kg}`);
       doc.text(`Çmimi: ${pkg.cmimi}`);
@@ -261,7 +261,7 @@ app.get('/api/report', authenticateToken, async (req, res) => {
     const end = new Date(year, monthNum, 1);
     const packages = await Package.find({ createdAt: { $gte: start, $lt: end } });
     // Create CSV header including new fields
-    let report = 'ID,Emri,Mbiemri,Adresa,Qyteti,Telefoni,Email dërgues,Email marrës,Kg,Cmimi,Data,Tracking ID,Status\n';
+    let report = 'ID,Emri,Mbiemri,Adresa,Qyteti,Telefoni,Email dërguës,Email marrës,Kg,Cmimi,Data,Tracking ID,Status\n';
     packages.forEach((p) => {
       report += `${p._id},${p.emri},${p.mbiemri},${p.adresa},${p.qyteti},${p.telefoni},${p.emailSender},${p.emailReceiver},${p.kg},${p.cmimi},${p.createdAt.toISOString()},${p.trackingId},${p.status}\n`;
     });
